@@ -1,0 +1,29 @@
+{
+  "name": "instagram-post-automation",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PauMateu/instagram-post-automation.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/PauMateu/instagram-post-automation/issues"
+  },
+  "homepage": "https://github.com/PauMateu/instagram-post-automation#readme",
+  "dependencies": {
+    "dotenv": "^10.0.0",
+    "express": "^4.17.1",
+    "image-size": "^1.0.0",
+    "instagram-web-api": "^2.2.2",
+    "jimp": "^0.16.1",
+    "tough-cookie-filestore2": "^1.0.0"
+  }
+}
