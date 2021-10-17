@@ -1,3 +1,6 @@
 /node_modules
 .env
 cookies.json
+/airbnbs
+/debug
+/posted
