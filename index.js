@@ -6,7 +6,8 @@ const Jimp = require("jimp");
 const sizeOf = require('image-size');
 const cron = require("node-cron")
 const fs = require("fs");
-const path = require("path")
+const path = require("path");
+const { resolve } = require("path");
 require("dotenv").config();
 
 const port = process.env.PORT || 4000;
@@ -38,7 +39,7 @@ const resizeAndCropImage = async (imagePath) =>{
     console.log(`    - height:${height}`)
     console.log(`    - w/h:${width / height}`)
     console.log(`    - h/w:${height/ width}`)
-
+    console.log("---------------------------")
     if ( width / height >= 1.91){
         //we have to adjust landscape ratio
         let newWidth = height * 1.90;
@@ -86,7 +87,8 @@ ${header}
 📍 ${airbnbInfo.location} 
 ⭐ ${airbnbInfo.rating}
 .
-Check our BIO for AirBnB url! 
+Check the link on our bio for the bnb url! 
+Don't forget to follow us for more afordable bnbs!
 ${footer}`
 }
 
@@ -102,7 +104,7 @@ const client = new Instagram(
 
 const instagramPostFunction = async (retry = true) =>{
     //Choose a folder and get the picture
-    console.log(" -Trying to get an Airbnb!")
+    console.log("-Trying to get an Airbnb!")
     let directories = getDirectories(path.resolve(__dirname, "./airbnbs"));
     if(directories.length < 1){
         console.error("error: [ No more airbnbs to post, cancelling the job ]");
@@ -119,9 +121,18 @@ const instagramPostFunction = async (retry = true) =>{
             instagramPostFunction(false);
             return;
         }
-        console.log(" -Trying resize the airbnb Image")
+        console.log("  ✓ Airbnb obtanied succesfully!");
+        console.log("-Trying to resize the airbnb Image")
         //resize crop it for the moment beeing, the first image
-        await resizeAndCropImage(`./airbnbs/${dir}/${pictures[0]}`);
+        try{
+            await resizeAndCropImage(`./airbnbs/${dir}/${pictures[0]}`);
+        }catch(e){
+            console.log("error: [Couldn't resize bnb, choosing anotheone]");
+            deleteDirectory(path.resolve(__dirname, `./airbnbs/${dir}`));
+            instagramPostFunction(false);
+            return;
+        }
+        console.log("  ✓ Airbnb  resized succesfully!");
         await setTimeout(()=>{}, 3000)
         //create description
         let rawairbnbInfo = fs.readFileSync(path.resolve(__dirname, `./airbnbs/${dir}/${json}`));
@@ -135,7 +146,16 @@ const instagramPostFunction = async (retry = true) =>{
         //create hastag comment
         let hastags = hastagJSON[Math.floor(Math.random()*hastagJSON.length)];
         //post picture
-        console.log(` -Trying to post the bnb image with caption \n --------------------\n ${description} \n--------------------\n And hastags --------------------\n ${hastags} \n--------------------\n`);
+        console.log(
+`-------------------
+Trying to post the bnb image with caption 
+-------------------
+${description}
+-------------------
+And hastags 
+-------------------- 
+${hastags} 
+--------------------`);
 
         let sizes = sizeOf(path.resolve(__dirname, `./airbnbs/${dir}/${pictures[0]}`));
         width = sizes.width;
@@ -149,16 +169,17 @@ const instagramPostFunction = async (retry = true) =>{
         }).then(async (res) =>{
             //post a comment
             const media = res.media;
-            console.log(`  -IMAGE POSTED SUCCESFULLY! \n  check it out at:`);
+            console.log(`  ✓ IMAGE POSTED SUCCESFULLY!  check it out at:`);
             console.log(`      https://www.instagram.com/p/${media.code}`);
-            console.log(" -Trying to post hastag comment")
+            console.log("-Trying to post hastag comment")
 
              await client.addComment({
                  mediaId: media.id,
                  text: hastags
                 }).then(async ()=>{
                     //changing bio link
-                    console.log(" -Trying to update URL bio link")
+                    console.log("  ✓ Hastag posted succesfully!");
+                    console.log("-Trying to update URL bio link")
 
                     await client.updateProfile(
                         {
@@ -172,7 +193,8 @@ const instagramPostFunction = async (retry = true) =>{
                             // gender: 0 // gender from profile
                         })
                         .then(()=>{
-                        console.log(" -Trying to write the json file to /posted")
+                        console.log("  ✓ Comment posted succesfully!");
+                        console.log("-Trying to write the json file to /posted")
                         //save the bnb info to a new JSON
                         airbnbInfo.instagramLink = `https://www.instagram.com/p/${media.code}`;
                         airbnbInfo.mediaId = media.id;
@@ -181,7 +203,9 @@ const instagramPostFunction = async (retry = true) =>{
                                 console.log("An error occured while writing JSON Object to File.");
                                 return console.log(err);
                             }
-                            console.log("  -JSON file saved");
+                            console.log("  ✓ JSON file saved");
+                            console.log("------ SESION ENDED ------");
+
                             //Delete the folder
                             deleteDirectory(path.resolve(__dirname, `./airbnbs/${dir}`));
                         });
@@ -203,15 +227,24 @@ const instagramPostFunction = async (retry = true) =>{
             });
     }
 }
-const loginFunction = async(retry = false) =>{
+const loginFunction = async(action = "post", retry = false) =>{
     console.log("-Trying to Login..");
     await client
         .login()
         .then((res)=>{
-            console.log("  -Loggin Succesful!");
-            console.log(res);
+            console.log("  ✓ Loggin Succesful!");
+            switch (action) {
+                case "post":
+                    instagramPostFunction();
+                    break;
 
-            instagramPostFunction();
+                case "follow":
+                    followUsers();
+                    break;
+
+                default:
+                    break;
+            }
         })
         .catch((err)=>{
             console.log("  -Loggin Failed!")
@@ -236,21 +269,69 @@ const loginFunction = async(retry = false) =>{
                 "  - Waiting 2 minutes to try to login again"
                 //try to login again
                 setTimeout(()=>{
-                    loginFunction(false);
+                    loginFunction(action, false);
                 },120000)
             }
     })
 }
 
+const followUsers = async () =>{
+    console.log('-------- FOLLOW USERS SCRIPT STARTED --------');
+    //get 20 random users
+    console.log('-Trying to get a list of users');
+    try{
+        let usersToFollow = await getLastBnBFollowers();
+        console.log("  ✓ List of users obtained succesfully")
+
+        //Follow them one by one
+        for(const usr of usersToFollow) {
+            await Promise.all([
+                followUsr(usr),
+            ]);
+        };
+        console.log('-------- FOLLOW USERS SCRIPT  --------');
+    }catch(e){
+        console.log('[ERROR] error on obtaining the list of users to follow:');
+        console.log(e);
+        return;
+    }
+}
+
+const getLastBnBFollowers = async () =>{
+    // 639837 - airbnb id
+    // 3703890771 - best airbnb id
+    
+    let airbnbFollowers = await client.getFollowers({ userId: '639837', first: 10 });
+    let airbnbFollowersIds = await airbnbFollowers.data.map(usr=>usr.id);
+    let bestBnbFollowers = await client.getFollowers({ userId: '3703890771', first: 10 });
+    let bestBnbFollowersIds = await bestBnbFollowers.data.map(usr=>usr.id);
+
+    return (airbnbFollowersIds.concat(bestBnbFollowersIds));
+}
 
 
-//Run routine everyday at noon
-// cron.schedule("00 12 * * *", () => {
-    // console.log("----------- NEW DAY STARTED -----------")
-//     loginFunction();
-// })
+const followUsr = async (usrId) =>{
+    //wait some random time between 2 and 7 minutes
+    return new Promise(resolve => {
+        let minToSleep = 2 +  Math.floor(Math.random() * 6);
+        console.log(`-Sleeping for ${minToSleep} min`);
+        setTimeout(async()=>{
+            console.log(`-Trying to follow user ${usrId}`);
+            await client.follow({ userId:usrId });
+            console.log("  ✓ User followed succesfully")
+            resolve();
+        }, (minToSleep * 60 * 1000 ));
+    })
+}
+
+cron.schedule("00 17 * * *", () => {
+    loginFunction('post');
+})
+
+cron.schedule("00 23 * * *", () => {
+    loginFunction('follow');
+})
 
 app.listen(port, ()=>{
     console.log(`Listening on port ${port}...`)
 })
-loginFunction();
