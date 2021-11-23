@@ -27,6 +27,7 @@
     "instagram-web-api": "^2.2.2",
     "jimp": "^0.16.1",
     "node-cron": "^3.0.0",
+    "node-fetch": "^2.6.6",
     "tough-cookie-filestore2": "^1.0.0"
   }
 }

@@ -38,7 +38,11 @@ app.get('/poststoryquiz',async (req, res) => {
     await postStory(ig, "388119", "quiz");
     return("POSTING STORY...")
 })
-
+app.get('/poststoryfirst',async (req, res) => {
+    await login(ig);
+    await postStory(ig, "388119", "first");
+    return("POSTING STORY...")
+})
 app.get('/followUsers',async (req, res) => {
     console.log('got request to follow user');
     await postbnb(ig);
